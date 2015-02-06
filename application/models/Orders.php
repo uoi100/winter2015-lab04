@@ -19,7 +19,21 @@ class Orders extends MY_Model {
 
     // calculate the total for an order
     function total($num) {
-        return 0.0;
+        $CI = &get_instance();
+        $CI->load->model('orderitems');
+        
+        //Get all the items in this order
+        $items = $this->orderitems->some('order', $num);
+        
+        // and add them up
+        $result = 0.00;
+        foreach($items as $item)
+        {
+            $menuItem = $this->menu->get($item->item);
+            $results = $menuItem->quantity * $menuItem->price;
+        }
+        
+        return $result;
     }
 
     // retrieve the details for an order
@@ -31,7 +45,6 @@ class Orders extends MY_Model {
     function flush($num) {
         
     }
-
     // validate an order
     // it must have at least one item from each category
     function validate($num) {
