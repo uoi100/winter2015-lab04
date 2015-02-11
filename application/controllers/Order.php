@@ -40,13 +40,14 @@ class Order extends Application {
         $this->data['order_num'] = $order_num;
         //FIXME
         $this->data['title'] = "Order #" . $order_num
-                . sprintf("(%.2f)", $this->orders->total($order_num));
+                . sprintf("($%.2f)", $this->orders->total($order_num));
         
         // Make the columns
         $this->data['meals'] = $this->make_column('m');
         $this->data['drinks'] = $this->make_column('d');
         $this->data['sweets'] = $this->make_column('s');
 
+        
 	// Bit of a hokey patch here, to work around the problem of the template
 	// parser no longer allowing access to a parent variable inside a
 	// child loop - used for the columns in the menu display.
@@ -82,6 +83,7 @@ class Order extends Application {
     // add an item to an order
     function add($order_num, $item) {
         //FIXME
+        $this->orders->add_item($order_num, $item);
         redirect('/order/display_menu/' . $order_num);
     }
 
@@ -91,19 +93,43 @@ class Order extends Application {
         $this->data['pagebody'] = 'show_order';
         $this->data['order_num'] = $order_num;
         //FIXME
+        $this->data['total'] = sprintf("($%.2f)", $this->orders->total($order_num));
+        
+        $items = $this->orderitems->group($order_num);
+        foreach($items as $item)
+        {
+            $menuitem = $this->menu->get($item->item);
+            $item->code = $menuitem->name;
+        }
+        $this->data['items'] = $items;
+        
+        if(!$this->orders->validate($order_num))
+             $this->data['okornot'] = "disabled";
 
         $this->render();
     }
 
     // proceed with checkout
-    function proceed($order_num) {
+    function commit($order_num) {
         //FIXME
+        if(!$this->orders->validate($order_num))
+            redirect('/order/display_menu/' . $order_num);
+        $record = $this->orders->get($order_num);
+        $record->date = date(DATE_ATOM);
+        $record->status = 'c';
+        $record->total = $this->orders->total($order_num);
+        $this->orders->update($record);
         redirect('/');
     }
 
     // cancel the order
     function cancel($order_num) {
         //FIXME
+        $this->orderitems->delete_some($order_num);
+        $record = $this->orders->get($order_num);
+        $record->status = 'x';
+        $this->orders->update($record);
+        $this->orders->flush($order_num);
         redirect('/');
     }
 
